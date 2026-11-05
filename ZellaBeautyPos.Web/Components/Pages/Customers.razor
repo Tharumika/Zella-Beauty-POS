@@ -1,0 +1,137 @@
+@page "/customers"
+@inject IDbContextFactory<SalonDbContext> Factory
+@inject ToastService Toast
+
+<PageTitle>Customers · ZELLA BEAUTY</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Customers</h1>
+        <p>Contact details and notes like allergies or favourite colours.</p>
+    </div>
+    <button class="btn" @onclick="OpenNew">Add customer</button>
+</header>
+
+<div class="search" style="margin-bottom:20px">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input class="input" type="search" aria-label="Search customers" placeholder="Search by name or phone"
+           @bind="search" @bind:event="oninput" @bind:after="LoadAsync" />
+</div>
+
+@if (items.Count == 0)
+{
+    <div class="empty">
+        <div class="drop"></div>
+        @if (string.IsNullOrWhiteSpace(search))
+        {
+            <b>No customers yet</b>
+            <span>Add your first customer to start building visit history.</span>
+        }
+        else
+        {
+            <b>No match for “@search”</b>
+            <span>Check the spelling, or search by phone number.</span>
+        }
+    </div>
+}
+else
+{
+    <div class="rows">
+        @foreach (var c in items)
+        {
+            <div class="row" @key="c.Id">
+                <span class="avatar" style="--shade:@Shades.ForName(c.Name)">@Shades.Initials(c.Name)</span>
+                <div class="row-main">
+                    <b>@c.Name</b>
+                    <span>@(string.IsNullOrWhiteSpace(c.Phone) ? "No phone" : c.Phone)</span>
+                    @if (!string.IsNullOrWhiteSpace(c.Notes)) { <span class="row-notes" style="display:block">@c.Notes</span> }
+                </div>
+                <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm" @onclick="() => OpenEdit(c)">Edit</button>
+                    <button class="btn btn-ghost btn-sm" @onclick="() => toDelete = c">Delete</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<Modal Open="showForm" Title="@(form.Id == 0 ? "Add customer" : "Edit customer")" OnClose="Close">
+    <EditForm Model="form" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+        <div class="field">
+            <label for="c-name">Name</label>
+            <InputText id="c-name" class="input" @bind-Value="form.Name" />
+            <ValidationMessage For="() => form.Name" />
+        </div>
+        <div class="field">
+            <label for="c-phone">Phone</label>
+            <InputText id="c-phone" class="input" @bind-Value="form.Phone" placeholder="077 123 4567" />
+            <ValidationMessage For="() => form.Phone" />
+        </div>
+        <div class="field">
+            <label for="c-notes">Notes</label>
+            <InputTextArea id="c-notes" class="input" rows="3" @bind-Value="form.Notes" placeholder="Allergic to acrylic, loves nude pinks" />
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" @onclick="Close">Cancel</button>
+            <button type="submit" class="btn">Save customer</button>
+        </div>
+    </EditForm>
+</Modal>
+
+<Modal Open="toDelete is not null" Title="Delete customer" OnClose="() => toDelete = null">
+    <p>Delete <b>@toDelete?.Name</b>? This can't be undone.</p>
+    <div class="modal-actions" style="margin-top:20px">
+        <button class="btn btn-ghost" @onclick="() => toDelete = null">Keep customer</button>
+        <button class="btn btn-danger" @onclick="DeleteAsync">Delete customer</button>
+    </div>
+</Modal>
+
+@code {
+    List<Customer> items = [];
+    Customer form = new();
+    Customer? toDelete;
+    string search = "";
+    bool showForm;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var q = db.Customers.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+            q = q.Where(c => c.Name.Contains(search) || (c.Phone != null && c.Phone.Contains(search)));
+        items = await q.OrderBy(c => c.Name).Take(200).ToListAsync();
+    }
+
+    void OpenNew() { form = new(); showForm = true; }
+    void OpenEdit(Customer c)
+    {
+        form = new Customer { Id = c.Id, Name = c.Name, Phone = c.Phone, Notes = c.Notes, CreatedAt = c.CreatedAt };
+        showForm = true;
+    }
+    void Close() => showForm = false;
+
+    async Task SaveAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var isNew = form.Id == 0;
+        if (isNew) db.Customers.Add(form); else db.Customers.Update(form);
+        await db.SaveChangesAsync();
+        showForm = false;
+        Toast.Success(isNew ? $"Added {form.Name}" : $"Saved {form.Name}");
+        await LoadAsync();
+    }
+
+    async Task DeleteAsync()
+    {
+        if (toDelete is null) return;
+        await using var db = await Factory.CreateDbContextAsync();
+        db.Customers.Remove(toDelete);
+        await db.SaveChangesAsync();
+        Toast.Success($"Deleted {toDelete.Name}");
+        toDelete = null;
+        await LoadAsync();
+    }
+}
