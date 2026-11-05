@@ -1,0 +1,112 @@
+@page "/staff"
+@inject IDbContextFactory<SalonDbContext> Factory
+@inject ToastService Toast
+
+<PageTitle>Staff · ZELLA BEAUTY</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Staff</h1>
+        <p>Stylists and nail technicians, with their commission rates.</p>
+    </div>
+    <button class="btn" @onclick="OpenNew">Add staff member</button>
+</header>
+
+@if (items.Count == 0)
+{
+    <div class="empty">
+        <div class="drop"></div>
+        <b>No staff yet</b>
+        Add a stylist or nail technician to assign them to sales.
+    </div>
+}
+else
+{
+    <div class="rows">
+        @foreach (var s in items)
+        {
+            <div class="row @(s.IsActive ? "" : "off")" @key="s.Id">
+                <span class="avatar" style="--shade:@Shades.ForName(s.Name)">@Shades.Initials(s.Name)</span>
+                <div class="row-main">
+                    <b>@s.Name</b>
+                    <span>@s.Role</span>
+                </div>
+                <span class="pill">@s.CommissionPercent.ToString("0.##")% commission</span>
+                <div class="row-actions">
+                    <button class="switch" role="switch" aria-checked="@(s.IsActive ? "true" : "false")" aria-label="@(s.IsActive ? "Disable" : "Enable") @s.Name" @onclick="() => ToggleAsync(s)"></button>
+                    <button class="btn btn-ghost btn-sm" @onclick="() => OpenEdit(s)">Edit</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<Modal Open="showForm" Title="@(form.Id == 0 ? "Add staff member" : "Edit staff member")" OnClose="Close">
+    <EditForm Model="form" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+        <div class="field">
+            <label for="st-name">Name</label>
+            <InputText id="st-name" class="input" @bind-Value="form.Name" />
+            <ValidationMessage For="() => form.Name" />
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="st-role">Role</label>
+                <InputText id="st-role" class="input" @bind-Value="form.Role" placeholder="Nail technician" />
+            </div>
+            <div class="field">
+                <label for="st-com">Commission (%)</label>
+                <InputNumber id="st-com" class="input" @bind-Value="form.CommissionPercent" />
+                <ValidationMessage For="() => form.CommissionPercent" />
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" @onclick="Close">Cancel</button>
+            <button type="submit" class="btn">Save staff member</button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    List<StaffMember> items = [];
+    StaffMember form = new();
+    bool showForm;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    async Task LoadAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        items = await db.Staff.OrderByDescending(s => s.IsActive).ThenBy(s => s.Name).ToListAsync();
+    }
+
+    void OpenNew() { form = new(); showForm = true; }
+    void OpenEdit(StaffMember s)
+    {
+        form = new StaffMember { Id = s.Id, Name = s.Name, Role = s.Role, CommissionPercent = s.CommissionPercent, IsActive = s.IsActive };
+        showForm = true;
+    }
+    void Close() => showForm = false;
+
+    async Task SaveAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var isNew = form.Id == 0;
+        if (isNew) db.Staff.Add(form); else db.Staff.Update(form);
+        await db.SaveChangesAsync();
+        showForm = false;
+        Toast.Success(isNew ? $"Added {form.Name}" : $"Saved {form.Name}");
+        await LoadAsync();
+    }
+
+    async Task ToggleAsync(StaffMember s)
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var e = await db.Staff.FindAsync(s.Id);
+        if (e is null) return;
+        e.IsActive = !e.IsActive;
+        await db.SaveChangesAsync();
+        Toast.Success($"{e.Name} {(e.IsActive ? "enabled" : "disabled")}");
+        await LoadAsync();
+    }
+}
