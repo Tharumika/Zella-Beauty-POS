@@ -7,11 +7,11 @@ public static class Shades
 {
     public static string Hex(ServiceCategory c) => c switch
     {
-        ServiceCategory.Hair => "#7B5CD6",
-        ServiceCategory.Nails => "#D63E7A",
-        ServiceCategory.NailArt => "#E8892B",
-        ServiceCategory.Skin => "#1E8C8A",
-        _ => "#8A7F90",
+        ServiceCategory.Hair => "#7A4A6B",
+        ServiceCategory.Nails => "#C0607A",
+        ServiceCategory.NailArt => "#D08A5E",
+        ServiceCategory.Skin => "#5E8C7B",
+        _ => "#9A8790",
     };
 
     public static string Label(ServiceCategory c) => c switch
@@ -20,7 +20,7 @@ public static class Shades
         _ => c.ToString(),
     };
 
-    static readonly string[] Palette = ["#7B5CD6", "#D63E7A", "#E8892B", "#1E8C8A", "#C9A24B", "#4F6BD8"];
+    static readonly string[] Palette = ["#7A4A6B", "#C0607A", "#D08A5E", "#5E8C7B", "#C9977C", "#8C6A9A"];
 
     public static string ForName(string name) =>
         Palette[(name ?? "").Aggregate(0, (h, ch) => (h * 31 + ch) & 0x7fffffff) % Palette.Length];
