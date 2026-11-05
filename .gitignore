@@ -487,3 +487,6 @@ $RECYCLE.BIN/
 *.db
 *.db-shm
 *.db-wal
+
+# Playwright MCP screenshots and logs
+.playwright-mcp/
