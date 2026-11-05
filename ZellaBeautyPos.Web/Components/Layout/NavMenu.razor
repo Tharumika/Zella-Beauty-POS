@@ -1,30 +1,27 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">ZellaBeautyPos.Web</a>
-    </div>
-</div>
+<a class="brand" href="" aria-label="ZELLA BEAUTY home">
+    <img class="brand-mark" src="logo-mark.png" alt="" width="48" height="48" />
+    <span class="brand-text">
+        <span class="brand-name">ZELLA</span>
+        <span class="brand-sub">BEAUTY</span>
+    </span>
+</a>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<nav class="nav">
+    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Dashboard
+    </NavLink>
+    <NavLink class="nav-link" href="checkout">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7zM9 8V6a3 3 0 0 1 6 0v2"/></svg>Checkout
+    </NavLink>
+    <NavLink class="nav-link" href="services">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z"/></svg>Services
+    </NavLink>
+    <NavLink class="nav-link" href="staff">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2A6.5 6.5 0 0 1 21.5 20"/></svg>Staff
+    </NavLink>
+    <NavLink class="nav-link" href="customers">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Customers
+    </NavLink>
+</nav>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-
+<p class="sidebar-foot">Salon &amp; nail art POS</p>
