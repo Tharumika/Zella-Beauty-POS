@@ -1,0 +1,19 @@
+@if (Open)
+{
+    <div class="modal-backdrop" @onclick="OnClose">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="@Title" @onclick:stopPropagation="true">
+            <header class="modal-head">
+                <h2>@Title</h2>
+                <button type="button" class="icon-btn" aria-label="Close" @onclick="OnClose">×</button>
+            </header>
+            <div class="modal-body">@ChildContent</div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
