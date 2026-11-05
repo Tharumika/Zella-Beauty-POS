@@ -1,0 +1,145 @@
+@page "/services"
+@inject IDbContextFactory<SalonDbContext> Factory
+@inject ToastService Toast
+
+<PageTitle>Services · ZELLA BEAUTY</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Services</h1>
+        <p>The menu your clients choose from.</p>
+    </div>
+    <button class="btn" @onclick="OpenNew">Add service</button>
+</header>
+
+<div class="chips" role="group" aria-label="Filter by category">
+    <button class="chip" aria-pressed="@(filter is null ? "true" : "false")" @onclick="() => filter = null">All <small>@items.Count</small></button>
+    @foreach (var c in Enum.GetValues<ServiceCategory>())
+    {
+        var n = items.Count(i => i.Category == c);
+        if (n == 0) continue;
+        <button class="chip" style="--shade:@Shades.Hex(c)" aria-pressed="@(filter == c ? "true" : "false")" @onclick="() => filter = c">
+            <i></i>@Shades.Label(c) <small>@n</small>
+        </button>
+    }
+</div>
+
+@if (Visible.Count == 0)
+{
+    <div class="empty">
+        <div class="drop"></div>
+        <b>No services yet</b>
+        Add your first service to start building the menu.
+    </div>
+}
+else
+{
+    <div class="grid">
+        @foreach (var s in Visible)
+        {
+            <article class="service @(s.IsActive ? "" : "off")" style="--shade:@Shades.Hex(s.Category)" @key="s.Id">
+                <div class="service-top">
+                    <span class="drop"></span>
+                    <div>
+                        <h3>@s.Name</h3>
+                        <span class="service-cat">@Shades.Label(s.Category)</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="service-price">@Shades.Money(s.Price)</div>
+                    <div class="service-meta">@s.DurationMinutes min</div>
+                </div>
+                <div class="service-foot">
+                    <button class="switch" role="switch" aria-checked="@(s.IsActive ? "true" : "false")" aria-label="@(s.IsActive ? "Disable" : "Enable") @s.Name" @onclick="() => ToggleAsync(s)"></button>
+                    <button class="btn btn-ghost btn-sm" @onclick="() => OpenEdit(s)">Edit</button>
+                </div>
+            </article>
+        }
+    </div>
+}
+
+<Modal Open="showForm" Title="@(form.Id == 0 ? "Add service" : "Edit service")" OnClose="Close">
+    <EditForm Model="form" OnValidSubmit="SaveAsync">
+        <DataAnnotationsValidator />
+        <div class="field">
+            <label for="s-name">Name</label>
+            <InputText id="s-name" class="input" @bind-Value="form.Name" placeholder="Gel polish" />
+            <ValidationMessage For="() => form.Name" />
+        </div>
+        <div class="field">
+            <label for="s-cat">Category</label>
+            <InputSelect id="s-cat" class="input" @bind-Value="form.Category">
+                @foreach (var c in Enum.GetValues<ServiceCategory>()) { <option value="@c">@Shades.Label(c)</option> }
+            </InputSelect>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="s-price">Price (Rs)</label>
+                <InputNumber id="s-price" class="input" @bind-Value="form.Price" />
+                <ValidationMessage For="() => form.Price" />
+            </div>
+            <div class="field">
+                <label for="s-min">Duration (minutes)</label>
+                <InputNumber id="s-min" class="input" @bind-Value="form.DurationMinutes" />
+                <ValidationMessage For="() => form.DurationMinutes" />
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" @onclick="Close">Cancel</button>
+            <button type="submit" class="btn">Save service</button>
+        </div>
+    </EditForm>
+</Modal>
+
+@code {
+    [SupplyParameterFromQuery(Name = "category")] public string? CategoryQuery { get; set; }
+
+    List<Service> items = [];
+    Service form = new();
+    ServiceCategory? filter;
+    bool showForm;
+
+    List<Service> Visible => items.Where(i => filter is null || i.Category == filter).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Enum.TryParse<ServiceCategory>(CategoryQuery, out var c)) filter = c;
+        await LoadAsync();
+    }
+
+    async Task LoadAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        items = await db.Services.OrderBy(s => s.Category).ThenBy(s => s.Name).ToListAsync();
+    }
+
+    void OpenNew() { form = new(); showForm = true; }
+    void OpenEdit(Service s)
+    {
+        form = new Service { Id = s.Id, Name = s.Name, Category = s.Category, Price = s.Price, DurationMinutes = s.DurationMinutes, IsActive = s.IsActive };
+        showForm = true;
+    }
+    void Close() => showForm = false;
+
+    async Task SaveAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var isNew = form.Id == 0;
+        if (isNew) db.Services.Add(form); else db.Services.Update(form);
+        await db.SaveChangesAsync();
+        showForm = false;
+        Toast.Success(isNew ? $"Added {form.Name}" : $"Saved {form.Name}");
+        await LoadAsync();
+    }
+
+    async Task ToggleAsync(Service s)
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        var e = await db.Services.FindAsync(s.Id);
+        if (e is null) return;
+        e.IsActive = !e.IsActive;
+        await db.SaveChangesAsync();
+        Toast.Success($"{e.Name} {(e.IsActive ? "enabled" : "disabled")}");
+        await LoadAsync();
+    }
+}
