@@ -1,0 +1,268 @@
+@page "/checkout"
+@inject IDbContextFactory<SalonDbContext> Factory
+@inject ToastService Toast
+
+<PageTitle>Checkout · ZELLA BEAUTY</PageTitle>
+
+<header class="page-head">
+    <div>
+        <h1>Checkout</h1>
+        <p>Pick the services, choose the customer, take cash.</p>
+    </div>
+</header>
+
+<div class="checkout">
+    <section>
+        <div class="chips" role="group" aria-label="Filter services">
+            <button class="chip" aria-pressed="@(filter is null ? "true" : "false")" @onclick="() => filter = null">All</button>
+            @foreach (var c in Categories)
+            {
+                <button class="chip" style="--shade:@Shades.Hex(c)" aria-pressed="@(filter == c ? "true" : "false")" @onclick="() => filter = c">
+                    <i></i>@Shades.Label(c)
+                </button>
+            }
+        </div>
+
+        @if (VisibleServices.Count == 0)
+        {
+            <div class="empty"><div class="drop"></div><b>No services to sell</b>Add or enable services on the <a href="services">Services</a> page.</div>
+        }
+        else
+        {
+            <div class="picks">
+                @foreach (var s in VisibleServices)
+                {
+                    <button class="pick" style="--shade:@Shades.Hex(s.Category)" @onclick="() => AddToCart(s)" @key="s.Id">
+                        <span class="drop"></span>
+                        <span class="pick-name">@s.Name</span>
+                        <span class="pick-price">@Shades.Money(s.Price)</span>
+                    </button>
+                }
+            </div>
+        }
+
+        <h2 class="section-title">Recent sales</h2>
+        @if (recent.Count == 0)
+        {
+            <p class="muted">No sales yet. Completed sales show up here.</p>
+        }
+        else
+        {
+            <div class="rows">
+                @foreach (var r in recent)
+                {
+                    <div class="row" @key="r.Id">
+                        <div class="row-main">
+                            <b>#@r.Id.ToString("0000") · @(r.Customer?.Name ?? "Walk-in customer")</b>
+                            <span>@r.CreatedAt.ToString("d MMM, h:mm tt") · @r.Items.Sum(i => i.Quantity) item(s)</span>
+                        </div>
+                        <b>@Shades.Money(r.Total)</b>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <aside class="cart" aria-label="Current sale">
+        <h2>Current sale</h2>
+
+        <div class="field">
+            <label for="cust-search">Customer</label>
+            @if (customer is null)
+            {
+                <input id="cust-search" class="input" type="search" placeholder="Search by name or phone (empty = walk-in)"
+                       @bind="custSearch" @bind:event="oninput" @bind:after="SearchCustomersAsync" autocomplete="off" />
+                @if (custResults.Count > 0)
+                {
+                    <ul class="results">
+                        @foreach (var c in custResults)
+                        {
+                            <li><button type="button" @onclick="() => SelectCustomer(c)">
+                                <span class="avatar sm" style="--shade:@Shades.ForName(c.Name)">@Shades.Initials(c.Name)</span>
+                                <span><b>@c.Name</b> <small>@c.Phone</small></span>
+                            </button></li>
+                        }
+                    </ul>
+                }
+                else if (!string.IsNullOrWhiteSpace(custSearch))
+                {
+                    <p class="muted">No match. <a href="customers">Add a customer</a></p>
+                }
+            }
+            else
+            {
+                <div class="picked">
+                    <span class="avatar sm" style="--shade:@Shades.ForName(customer.Name)">@Shades.Initials(customer.Name)</span>
+                    <span><b>@customer.Name</b> <small>@customer.Phone</small></span>
+                    <button class="icon-btn" aria-label="Remove customer" @onclick="ClearCustomer">×</button>
+                </div>
+            }
+        </div>
+
+        <div class="field">
+            <label for="staff-sel">Served by</label>
+            <select id="staff-sel" class="input" @bind="staffId">
+                <option value="">Unassigned</option>
+                @foreach (var s in staff) { <option value="@s.Id">@s.Name</option> }
+            </select>
+        </div>
+
+        @if (cart.Count == 0)
+        {
+            <p class="cart-empty">Tap a service to add it.</p>
+        }
+        else
+        {
+            <ul class="lines">
+                @foreach (var l in cart)
+                {
+                    <li @key="l.Service.Id">
+                        <div class="line-name">
+                            <b>@l.Service.Name</b>
+                            <small>@Shades.Money(l.Service.Price) each</small>
+                        </div>
+                        <div class="qty">
+                            <button aria-label="Fewer @l.Service.Name" @onclick="() => ChangeQty(l, -1)">−</button>
+                            <span>@l.Qty</span>
+                            <button aria-label="More @l.Service.Name" @onclick="() => ChangeQty(l, 1)">+</button>
+                        </div>
+                        <b class="line-total">@Shades.Money(l.Service.Price * l.Qty)</b>
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="field-row compact">
+            <div class="field">
+                <label for="disc">Discount (Rs)</label>
+                <input id="disc" class="input" type="number" min="0" step="any" @bind="discount" @bind:event="oninput" />
+            </div>
+            <div class="field">
+                <label for="cash">Cash received (Rs)</label>
+                <input id="cash" class="input" type="number" min="0" step="any" @bind="cash" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="quick-cash">
+            <button class="chip" disabled="@(cart.Count == 0)" @onclick="() => cash = Total">Exact</button>
+            @foreach (var amount in new[] { 1000, 2000, 5000, 10000 })
+            {
+                <button class="chip" @onclick="() => cash = amount">@amount.ToString("N0")</button>
+            }
+        </div>
+
+        <dl class="totals">
+            <dt>Subtotal</dt><dd>@Shades.Money(Subtotal)</dd>
+            @if (Disc > 0) { <dt>Discount</dt><dd>-@Shades.Money(Disc)</dd> }
+            <dt class="grand">Total</dt><dd class="grand">@Shades.Money(Total)</dd>
+            <dt>Change</dt>
+            <dd class="@(cash.HasValue && Change < 0 ? "short" : "")">
+                @if (!cash.HasValue) { <text>-</text> }
+                else if (Change < 0) { <text>Short by @Shades.Money(-Change)</text> }
+                else { <text>@Shades.Money(Change)</text> }
+            </dd>
+        </dl>
+
+        <button class="btn btn-block" disabled="@(!CanComplete)" @onclick="CompleteAsync">Complete sale</button>
+        @if (cart.Count > 0)
+        {
+            <button class="btn btn-ghost btn-block" @onclick="ResetSale">Clear sale</button>
+        }
+    </aside>
+</div>
+
+@code {
+    class CartLine { public Service Service { get; set; } = default!; public int Qty { get; set; } = 1; }
+
+    List<Service> services = [];
+    List<StaffMember> staff = [];
+    List<Sale> recent = [];
+    readonly List<CartLine> cart = [];
+    ServiceCategory? filter;
+
+    Customer? customer;
+    string custSearch = "";
+    List<Customer> custResults = [];
+
+    int? staffId;
+    decimal? discount;
+    decimal? cash;
+
+    IEnumerable<ServiceCategory> Categories => services.Select(s => s.Category).Distinct().OrderBy(c => c);
+    List<Service> VisibleServices => services.Where(s => filter is null || s.Category == filter).ToList();
+
+    decimal Subtotal => cart.Sum(l => l.Service.Price * l.Qty);
+    decimal Disc => Math.Clamp(discount ?? 0, 0, Subtotal);
+    decimal Total => Subtotal - Disc;
+    decimal Change => (cash ?? 0) - Total;
+    bool CanComplete => cart.Count > 0 && cash.HasValue && cash.Value >= Total;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        services = await db.Services.Where(s => s.IsActive).OrderBy(s => s.Category).ThenBy(s => s.Name).ToListAsync();
+        staff = await db.Staff.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync();
+        staffId = staff.FirstOrDefault()?.Id;
+        await LoadRecentAsync();
+    }
+
+    async Task LoadRecentAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        recent = await db.Sales.Include(s => s.Items).Include(s => s.Customer)
+            .OrderByDescending(s => s.Id).Take(8).ToListAsync();
+    }
+
+    void AddToCart(Service s)
+    {
+        var line = cart.FirstOrDefault(l => l.Service.Id == s.Id);
+        if (line is null) cart.Add(new CartLine { Service = s }); else line.Qty++;
+    }
+
+    void ChangeQty(CartLine l, int delta)
+    {
+        l.Qty += delta;
+        if (l.Qty <= 0) cart.Remove(l);
+    }
+
+    async Task SearchCustomersAsync()
+    {
+        if (string.IsNullOrWhiteSpace(custSearch)) { custResults = []; return; }
+        await using var db = await Factory.CreateDbContextAsync();
+        custResults = await db.Customers
+            .Where(c => c.Name.Contains(custSearch) || (c.Phone != null && c.Phone.Contains(custSearch)))
+            .OrderBy(c => c.Name).Take(5).ToListAsync();
+    }
+
+    void SelectCustomer(Customer c) { customer = c; custResults = []; custSearch = ""; }
+    void ClearCustomer() => customer = null;
+
+    void ResetSale()
+    {
+        cart.Clear(); customer = null; custSearch = ""; custResults = []; discount = null; cash = null;
+    }
+
+    async Task CompleteAsync()
+    {
+        if (!CanComplete) return;
+        await using var db = await Factory.CreateDbContextAsync();
+        var sale = new Sale
+        {
+            CreatedAt = DateTime.Now,
+            CustomerId = customer?.Id,
+            StaffMemberId = staffId,
+            Subtotal = Subtotal,
+            Discount = Disc,
+            Total = Total,
+            CashReceived = cash!.Value,
+            ChangeGiven = Change,
+            Items = cart.Select(l => new SaleItem { Name = l.Service.Name, UnitPrice = l.Service.Price, Quantity = l.Qty }).ToList(),
+        };
+        db.Sales.Add(sale);
+        await db.SaveChangesAsync();
+
+        Toast.Success($"Sale #{sale.Id:0000} completed");
+        ResetSale();
+        await LoadRecentAsync();
+    }
+}
