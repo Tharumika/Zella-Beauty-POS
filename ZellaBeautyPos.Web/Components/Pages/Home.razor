@@ -1,7 +1,65 @@
-﻿@page "/"
+@page "/"
+@inject IDbContextFactory<SalonDbContext> Factory
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard · ZELLA BEAUTY</PageTitle>
 
-<h1>Hello, world!</h1>
+<section class="hero">
+    <h1>@Greeting</h1>
+    <p>@DateTime.Now.ToString("dddd, d MMMM yyyy")</p>
+</section>
 
-Welcome to your new app.
+<div class="rail">
+    @foreach (var c in Enum.GetValues<ServiceCategory>().Where(k => counts.GetValueOrDefault(k) > 0))
+    {
+        <a class="rail-item" style="--shade:@Shades.Hex(c)" href="services?category=@c">
+            <span class="drop"></span>
+            <div><b>@counts[c]</b><span>@Shades.Label(c)</span></div>
+        </a>
+    }
+</div>
+
+<section class="summary">
+    <div><b>@Shades.Money(todayTotal)</b><span>Sales today (@todayCount)</span></div>
+    <div><b>@staffCount</b><span>Active staff</span></div>
+    <div><b>@customerCount</b><span>Customers</span></div>
+    <div><b>@counts.Values.Sum()</b><span>Active services</span></div>
+</section>
+
+<div class="actions">
+    <a class="btn" href="checkout">New sale</a>
+    <a class="btn btn-ghost" href="customers">Add a customer</a>
+    <a class="btn btn-ghost" href="services">Edit the service menu</a>
+    <a class="btn btn-ghost" href="staff">Manage staff</a>
+</div>
+
+<p class="note">Appointments and reports are the next features to be added.</p>
+
+@code {
+    Dictionary<ServiceCategory, int> counts = [];
+    int staffCount, customerCount, todayCount;
+    decimal todayTotal;
+
+    string Greeting
+    {
+        get
+        {
+            var hour = DateTime.Now.Hour;
+            if (hour >= 17) return "Good evening";
+            if (hour >= 12) return "Good afternoon";
+            return "Good morning";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Factory.CreateDbContextAsync();
+        counts = await db.Services.Where(s => s.IsActive).GroupBy(s => s.Category)
+            .Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N);
+        staffCount = await db.Staff.CountAsync(s => s.IsActive);
+        customerCount = await db.Customers.CountAsync();
+        var today = DateTime.Today;
+        var todays = await db.Sales.Where(x => x.CreatedAt >= today).Select(x => x.Total).ToListAsync();
+        todayCount = todays.Count;
+        todayTotal = todays.Sum();
+    }
+}
