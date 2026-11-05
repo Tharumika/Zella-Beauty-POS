@@ -346,7 +346,10 @@ small { color: var(--muted); }
     .shell { grid-template-columns: 1fr; }
     .sidebar { position: static; height: auto; flex-direction: row; align-items: center; gap: 14px; padding: 14px 16px; overflow-x: auto; }
     .sidebar-foot { display: none; }
-    .brand { flex: none; }
+    .brand { flex: none; padding: 0; }
+    .brand-logo { width: 104px; margin: 0; }
+    .sidebar { scrollbar-width: none; }
+    .sidebar::-webkit-scrollbar { display: none; }
     .nav { flex-direction: row; }
     .nav-link { padding: 9px 12px; white-space: nowrap; }
     .main { padding-top: 24px; }
