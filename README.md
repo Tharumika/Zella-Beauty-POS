@@ -41,8 +41,8 @@ Zella Beauty POS aims to simplify day-to-day salon operations: taking payments, 
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/Zella-Beauty-POS.git
-cd Zella-Beauty-POS/Zella-Beauty-POS.web
+git clone https://github.com/Tharumika/Zella-Beauty-POS.git
+cd Zella-Beauty-POS/ZellaBeautyPos.Web
 
 # Restore dependencies
 dotnet restore
@@ -66,7 +66,7 @@ dotnet test             # Run tests (once a test project is added)
 ```
 Zella-Beauty-POS/
 ├── README.md
-└── Zella-Beauty-POS.web/
+└── ZellaBeautyPos.Web/
     ├── Components/        # Razor components, layouts, and pages
     ├── Properties/        # Launch settings
     ├── wwwroot/           # Static assets (CSS, images, JS)

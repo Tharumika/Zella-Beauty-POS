@@ -1,4 +1,4 @@
-using Zella_Beauty_POS.web.Components;
+using ZellaBeautyPos.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
